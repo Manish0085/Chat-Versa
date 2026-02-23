@@ -28,6 +28,10 @@ const ChatPage = () => {
   const chatBoxRef = useRef(null);
   const [stompClient, setStompClient] = useState(null);
   const [inCall, setInCall] = useState(false);
+  const [callType, setCallType] = useState('video'); // 'video' or 'audio'
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [initialSignal, setInitialSignal] = useState(null);
+  const [signalQueue, setSignalQueue] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef(null);
@@ -149,6 +153,19 @@ const ChatPage = () => {
           [data.email]: data.online
         }));
       });
+
+      // Sub 5: Incoming Call Signaling
+      client.subscribe(`/topic/call/${roomId}`, (message) => {
+        const signal = JSON.parse(message.body);
+        if (signal.from === currentUser) return;
+
+        if (signal.type === "offer") {
+          setIncomingCall(signal);
+        } else if (signal.type === "candidate" || signal.type === "answer") {
+          // If we have a pending incoming call but haven't joined yet, queue the signals
+          setSignalQueue(prev => [...prev, signal]);
+        }
+      });
     };
 
     client.onStompError = (frame) => {
@@ -236,14 +253,67 @@ const ChatPage = () => {
     r.roomId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleAcceptCall = () => {
+    setCallType(incomingCall.callType || 'video');
+    setInitialSignal(incomingCall);
+    setInCall(true);
+    setIncomingCall(null);
+  };
+
+  const handleRejectCall = () => {
+    // Optional: send reject signal
+    setIncomingCall(null);
+  };
+
   return (
     <div className="flex h-screen bg-[#0b141a] text-[#e9edef] overflow-hidden font-sans">
+      {/* Incoming Call Notification */}
+      {incomingCall && !inCall && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-[#202c33] border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full">
+            <div className="relative">
+              <img
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${incomingCall.from}`}
+                alt="avatar"
+                className="w-24 h-24 rounded-full bg-[#313d45] border-4 border-[#00a884] shadow-xl animate-pulse"
+              />
+              <div className="absolute -bottom-2 -right-2 bg-[#00a884] p-2 rounded-full shadow-lg">
+                {incomingCall.callType === 'audio' ? <MdCall className="text-white" size={20} /> : <MdVideocam className="text-white" size={20} />}
+              </div>
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-white mb-1">Incoming {incomingCall.callType === 'audio' ? 'Voice' : 'Video'} Call</h3>
+              <p className="text-[#8696a0] font-medium">{incomingCall.from} is calling you...</p>
+            </div>
+
+            <div className="flex gap-4 w-full">
+              <button
+                onClick={handleRejectCall}
+                className="flex-1 py-3 bg-red-600/20 text-red-500 rounded-2xl font-bold hover:bg-red-600 hover:text-white transition-all active:scale-95"
+              >
+                Decline
+              </button>
+              <button
+                onClick={handleAcceptCall}
+                className="flex-1 py-3 bg-[#00a884] text-[#111b21] rounded-2xl font-bold hover:bg-[#06cf9c] transition-all shadow-lg shadow-[#00a884]/20 active:scale-95 animate-bounce-subtle"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {inCall && (
         <VideoCall
           stompClient={stompClient}
           roomId={roomId}
           currentUser={currentUser}
-          onEndCall={() => setInCall(false)}
+          callType={callType}
+          initialSignal={initialSignal}
+          signalQueue={signalQueue}
+          onEndCall={() => { setInCall(false); setInitialSignal(null); setSignalQueue([]); }}
         />
       )}
 
@@ -317,8 +387,8 @@ const ChatPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-5 text-[#aebac1]">
-            <button onClick={() => setInCall(true)} className="hover:text-[#00a884] transition-colors"><MdVideocam size={26} /></button>
-            <button onClick={() => setInCall(true)} className="hover:text-[#00a884] transition-colors"><MdCall size={24} /></button>
+            <button onClick={() => { setCallType('video'); setInCall(true); }} className="hover:text-[#00a884] transition-colors"><MdVideocam size={26} /></button>
+            <button onClick={() => { setCallType('audio'); setInCall(true); }} className="hover:text-[#00a884] transition-colors"><MdCall size={24} /></button>
             <div className="w-[1px] h-6 bg-[#313d45] mx-1"></div>
             <button onClick={handleLogout} className="px-4 py-1.5 rounded-lg border border-red-500/30 text-red-500 text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">Sign Out</button>
           </div>
