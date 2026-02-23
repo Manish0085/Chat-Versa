@@ -14,6 +14,6 @@ EXPOSE 8081
 # Environment variables for cloud configuration
 ENV MONGODB_URI=mongodb://localhost:27017/chatapp
 ENV KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-ENV FRONT_END_BASE_URL=http://localhost:5173
+ENV FRONT_END_BASE_URL=https://chat-versa-zm6p.vercel.app
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
