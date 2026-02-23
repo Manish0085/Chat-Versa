@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     stages {
+
         stage('Clone Repo') {
             steps {
                 checkout scm
@@ -10,13 +11,17 @@ pipeline {
 
         stage('Build JAR') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                dir('backend') {
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t chat-backend:latest .'
+                dir('backend') {
+                    sh 'docker build -t chat-backend:latest .'
+                }
             }
         }
 
@@ -26,9 +31,9 @@ pipeline {
                 docker rm -f chat-backend || true
                 docker run -d \
                   --name chat-backend \
-                  -p 8081:8081 \
+                  --network host \
                   -e KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 \
-                  -e MONGODB_URI=mongodb://localhost:27017/chatapp \
+                  -e MONGODB_URI=mongodb://127.0.0.1:27017/chatapp \
                   chat-backend:latest
                 '''
             }
