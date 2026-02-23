@@ -11,7 +11,7 @@ pipeline {
 
         stage('Build JAR') {
             steps {
-                dir('backend') {
+                dir('ChatVerse-Backend') {
                     sh 'mvn clean package -DskipTests'
                 }
             }
