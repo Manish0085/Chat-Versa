@@ -1,7 +1,6 @@
 pipeline {
-    agent {
-        label 'Chat-Node'
-    }
+    agent any
+
     stages {
 
         stage('Clone Repo') {
