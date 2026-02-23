@@ -7,7 +7,7 @@ import { Client } from "@stomp/stompjs";
 import toast from "react-hot-toast";
 import { baseURL } from "../config/AxiosHelper";
 import { getMessagess, getRoomsApi, uploadFileApi } from "../services/RoomService";
-import { timeAgo } from "../config/helper";
+import { timeAgo } from "../config/Helper";
 import VideoCall from "./VideoCall";
 import { useAuth } from "../context/AuthContext";
 
