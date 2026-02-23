@@ -2,10 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { MdCallEnd, MdVideocam, MdVideocamOff, MdMic, MdMicOff } from "react-icons/md";
 
-const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, signalQueue, onEndCall }) => {
+const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, signalQueue, isInitiator, onEndCall }) => {
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
-    const remoteAudioRef = useRef(null);
     const [localStream, setLocalStream] = useState(null);
     const peerConnection = useRef(null);
     const [isMuted, setIsMuted] = useState(false);
@@ -39,21 +38,32 @@ const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, 
 
                 peerConnection.current.ontrack = (event) => {
                     log("Remote track received");
-                    if (callType === 'video' && remoteVideoRef.current) {
-                        remoteVideoRef.current.srcObject = event.streams[0];
-                    } else if (callType === 'audio' && remoteAudioRef.current) {
-                        remoteAudioRef.current.srcObject = event.streams[0];
+                    if (remoteVideoRef.current) {
+                        if (event.streams && event.streams[0]) {
+                            remoteVideoRef.current.srcObject = event.streams[0];
+                        } else {
+                            // Some browsers might not provide streams, only tracks
+                            log("No stream in event, creating one from tracks");
+                            if (!remoteVideoRef.current.srcObject) {
+                                remoteVideoRef.current.srcObject = new MediaStream();
+                            }
+                            // Check if the track is already added to avoid duplicates
+                            if (!Array.from(remoteVideoRef.current.srcObject.getTracks()).some(t => t.id === event.track.id)) {
+                                remoteVideoRef.current.srcObject.addTrack(event.track);
+                            }
+                        }
                     }
                 };
 
                 peerConnection.current.oniceconnectionstatechange = () => {
-                    log(`ICE Connection State: ${peerConnection.current.iceConnectionState}`);
-                    if (peerConnection.current.iceConnectionState === "connected" ||
-                        peerConnection.current.iceConnectionState === "completed") {
+                    const state = peerConnection.current.iceConnectionState;
+                    log(`ICE Connection State: ${state}`);
+                    if (state === "connected" || state === "completed") {
                         setConnectionStatus("connected");
-                    } else if (peerConnection.current.iceConnectionState === "failed" ||
-                        peerConnection.current.iceConnectionState === "disconnected") {
-                        setConnectionStatus("failed");
+                    } else if (state === "failed" || state === "disconnected") {
+                        // Don't show failed immediately on disconnected, as it might reconnect
+                        if (state === "failed") setConnectionStatus("failed");
+                        // If we were connected and now disconnected, maybe just show a subtle warning
                     }
                 };
 
@@ -88,16 +98,18 @@ const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, 
                 // For simplicity, let's say the first person to join handles this or we have a button
                 // Here we just wait for signaling
 
-                // Process initial signal if provided (Incoming call - Receiver Side)
+                // Process initial signal if provided
                 if (initialSignal && initialSignal.type === "offer") {
-                    log("Processing initial offer");
+                    log("Processing initial offer from props");
                     await handleSignalingData(initialSignal);
-                } else if (!initialSignal) {
+                } else if (isInitiator) {
                     // We are the initiator
-                    log("Initiating call automatically");
+                    log("Initiating call automatically as initiator");
                     setTimeout(() => {
                         startCall();
-                    }, 1000);
+                    }, 1500); // Slightly longer delay to ensure receiver is ready
+                } else {
+                    log("Waiting for incoming offer as receiver");
                 }
 
                 // Process signal queue from ChatPage (missed signals)
@@ -157,28 +169,10 @@ const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, 
                     log("Queueing ICE candidate (remoteDescription not set)");
                     pendingCandidates.current.push(signal.data);
                 }
-            } else if (signal.type === "hangup") {
-                log("Received Hangup signal");
-                onEndCall();
             }
         } catch (err) {
             console.error("Error handling signaling data", err);
         }
-    };
-
-    const handleHangup = () => {
-        log("Ending call and sending hangup signal");
-        if (stompClient && stompClient.connected) {
-            stompClient.publish({
-                destination: `/app/call.signal`,
-                body: JSON.stringify({
-                    type: "hangup",
-                    from: currentUser,
-                    roomId: roomId
-                })
-            });
-        }
-        onEndCall();
     };
 
     const safeAddIceCandidate = async (candidateData) => {
@@ -227,45 +221,70 @@ const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, 
     };
 
     const toggleVideo = () => {
-        localStream.getVideoTracks()[0].enabled = isVideoOff;
-        setIsVideoOff(!isVideoOff);
+        if (callType === 'audio') return;
+        const videoTrack = localStream?.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = isVideoOff;
+            setIsVideoOff(!isVideoOff);
+        }
     };
 
     return (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4">
             <div className="relative w-full max-w-5xl aspect-video bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10">
-                {/* Media Elements */}
+                {/* Content Area */}
                 {callType === 'video' ? (
-                    <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className={`w-full h-full object-cover transition-opacity duration-1000 ${connectionStatus === 'connected' ? 'opacity-100' : 'opacity-0'}`}
-                    />
-                ) : (
-                    <audio ref={remoteAudioRef} autoPlay />
-                )}
+                    <>
+                        <video
+                            ref={remoteVideoRef}
+                            autoPlay
+                            playsInline
+                            className={`w-full h-full object-cover transition-opacity duration-1000 ${connectionStatus === 'connected' ? 'opacity-100' : 'opacity-0'}`}
+                        />
 
-                {/* Voice Call UI (Always shows for audio, shows for video when connecting/failed) */}
-                {(callType === 'audio' || connectionStatus !== 'connected') && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0b141a]">
-                        <div className="relative mb-8">
-                            <div className={`w-32 h-32 rounded-full border-4 border-[#00a884]/20 border-t-[#00a884] ${connectionStatus === 'connected' ? 'animate-none' : 'animate-spin'}`}></div>
+                        {connectionStatus !== 'connected' && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0b141a]">
+                                <div className="relative mb-8">
+                                    <div className="w-32 h-32 rounded-full border-4 border-[#00a884]/20 border-t-[#00a884] animate-spin"></div>
+                                    <img
+                                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${roomId}`}
+                                        alt="avatar"
+                                        className="absolute inset-4 w-24 h-24 rounded-full bg-[#111b21]"
+                                    />
+                                </div>
+                                <h2 className="text-2xl font-bold text-white mb-2 animate-pulse">
+                                    {connectionStatus === 'connecting' ? 'Establishing Secure Connection...' : 'Call Failed'}
+                                </h2>
+                                <p className="text-[#8696a0] font-medium tracking-wide uppercase text-xs">
+                                    Video Call • End-to-End Encrypted
+                                </p>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#111b21] to-[#0b141a]">
+                        <div className="relative mb-12">
+                            <div className={`absolute -inset-8 rounded-full bg-[#00a884]/10 blur-3xl transition-opacity duration-1000 ${connectionStatus === 'connected' ? 'opacity-100' : 'opacity-20 animate-pulse'}`}></div>
                             <img
                                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${roomId}`}
                                 alt="avatar"
-                                className={`absolute inset-4 w-24 h-24 rounded-full bg-[#111b21] transition-transform duration-500 ${callType === 'audio' && connectionStatus === 'connected' ? 'scale-110 shadow-[0_0_30px_rgba(0,168,132,0.4)]' : ''}`}
+                                className={`w-48 h-48 rounded-full border-4 ${connectionStatus === 'connected' ? 'border-[#00a884] shadow-[0_0_40px_rgba(0,168,132,0.3)]' : 'border-[#2a3942] animate-pulse'} bg-[#202c33] transition-all duration-700`}
                             />
-                            {callType === 'audio' && connectionStatus === 'connected' && (
-                                <div className="absolute -inset-4 rounded-full border-2 border-[#00a884]/30 animate-ping"></div>
+                            {connectionStatus === 'connected' && (
+                                <div className="absolute -bottom-2 right-10 bg-[#00a884] p-3 rounded-full shadow-xl border-4 border-[#111b21] animate-bounce-subtle">
+                                    <MdMic className="text-white" size={24} />
+                                </div>
                             )}
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2 animate-pulse">
-                            {connectionStatus === 'connecting' ? 'Establishing Secure Connection...' :
-                                connectionStatus === 'connected' ? 'Voice Call Active' : 'Call Failed'}
+                        <h2 className="text-3xl font-bold text-white mb-3">
+                            {connectionStatus === 'connected' ? 'In Call' : 'Connecting to Voice Call...'}
                         </h2>
-                        <p className="text-[#8696a0] font-medium tracking-wide uppercase text-xs">
-                            {callType === 'video' ? 'Video' : 'Voice'} Call • End-to-End Encrypted
+                        <p className="text-[#8696a0] font-medium tracking-[0.2em] uppercase text-xs flex items-center gap-2">
+                            {connectionStatus === 'connected' ? (
+                                <><span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse"></span> Secure Voice Link</>
+                            ) : (
+                                'Waiting for secure handshake'
+                            )}
                         </p>
                     </div>
                 )}
@@ -309,7 +328,7 @@ const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, 
                         </button>
                     )}
                     <button
-                        onClick={handleHangup}
+                        onClick={onEndCall}
                         className="p-4 bg-red-600 text-white rounded-full hover:bg-red-500 transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:rotate-90 active:scale-90"
                     >
                         <MdCallEnd size={28} />

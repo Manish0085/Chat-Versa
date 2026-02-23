@@ -15,4 +15,5 @@ public class CallPayload {
     private String from;
     private String to;
     private String roomId;
+    private String callType; // 'audio' or 'video'
 }
