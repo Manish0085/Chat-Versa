@@ -19,7 +19,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                dir('backend') {
+                dir('ChatVerse-Backend') {
                     sh 'docker build -t chat-backend:latest .'
                 }
             }
