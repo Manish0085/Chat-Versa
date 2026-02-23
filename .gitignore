@@ -1,0 +1,14 @@
+# IDE Files
+.idea/
+.vscode/
+
+# Environment Variables
+.env
+.env.local
+
+# OS related
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
