@@ -157,10 +157,28 @@ const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, 
                     log("Queueing ICE candidate (remoteDescription not set)");
                     pendingCandidates.current.push(signal.data);
                 }
+            } else if (signal.type === "hangup") {
+                log("Received Hangup signal");
+                onEndCall();
             }
         } catch (err) {
             console.error("Error handling signaling data", err);
         }
+    };
+
+    const handleHangup = () => {
+        log("Ending call and sending hangup signal");
+        if (stompClient && stompClient.connected) {
+            stompClient.publish({
+                destination: `/app/call.signal`,
+                body: JSON.stringify({
+                    type: "hangup",
+                    from: currentUser,
+                    roomId: roomId
+                })
+            });
+        }
+        onEndCall();
     };
 
     const safeAddIceCandidate = async (candidateData) => {
@@ -291,7 +309,7 @@ const VideoCall = ({ stompClient, roomId, currentUser, callType, initialSignal, 
                         </button>
                     )}
                     <button
-                        onClick={onEndCall}
+                        onClick={handleHangup}
                         className="p-4 bg-red-600 text-white rounded-full hover:bg-red-500 transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:rotate-90 active:scale-90"
                     >
                         <MdCallEnd size={28} />
