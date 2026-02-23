@@ -1,0 +1,37 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build JAR') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t chat-backend:latest .'
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                docker rm -f chat-backend || true
+                docker run -d \
+                  --name chat-backend \
+                  -p 8081:8081 \
+                  -e KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 \
+                  -e MONGODB_URI=mongodb://localhost:27017/chatapp \
+                  chat-backend:latest
+                '''
+            }
+        }
+    }
+}
