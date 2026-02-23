@@ -23,7 +23,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/chat")
-                .setAllowedOrigins(frontendUrl, "http://localhost:5173", "http://localhost:5174")
+                .setAllowedOrigins(frontendUrl, "chat-versa-zm6p.vercel.app")
                 .withSockJS();
     }
 }
