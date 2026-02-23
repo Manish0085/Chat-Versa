@@ -40,7 +40,7 @@ const JoinCreateChat = () => {
         setConnected(true);
         navigate("/chat");
       } catch (err) {
-        toast.error(err?.response?.data || "Room not found on Cloud MSK.");
+        toast.error(err?.response?.data?.message || err?.response?.data || "Room not found on Cloud MSK.");
       }
     }
   }
@@ -55,7 +55,7 @@ const JoinCreateChat = () => {
         setConnected(true);
         navigate("/chat");
       } catch (err) {
-        toast.error(err?.response?.data || "Provisioning failed.");
+        toast.error(err?.response?.data?.message || err?.response?.data || "Provisioning failed.");
       }
     }
   }

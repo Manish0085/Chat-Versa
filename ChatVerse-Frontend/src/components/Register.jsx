@@ -19,7 +19,7 @@ const Register = () => {
             toast.success("Account created! You can now login.");
             navigate("/login");
         } catch (error) {
-            toast.error(error.response?.data || "Could not register. Try again.");
+            toast.error(error.response?.data?.message || error.response?.data || "Could not register. Try again.");
         }
     };
 

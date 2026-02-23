@@ -22,7 +22,7 @@ const Login = () => {
             toast.success("Welcome back!");
             navigate("/");
         } catch (error) {
-            toast.error(error.response?.data || "Email or password incorrect");
+            toast.error(error.response?.data?.message || error.response?.data || "Email or password incorrect");
         }
     };
 
