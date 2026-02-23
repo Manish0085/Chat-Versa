@@ -4,7 +4,7 @@
 [![React](https://img.shields.io/badge/React-18-blue)](https://react.dev/)
 [![WebRTC](https://img.shields.io/badge/WebRTC-Enabled-orange)](https://webrtc.org/)
 [![Kafka](https://img.shields.io/badge/Kafka-Reliable-red)](https://kafka.apache.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 **ChatVerse** is a premium, high-performance real-time communication platform built for scale and reliability. It combines the power of **Spring Boot** and **Apache Kafka** for robust messaging with **WebRTC** for seamless, low-latency video and audio calling.
 
@@ -105,7 +105,7 @@ npm run dev
 ## 📸 Screenshots
 
 ### **Premium Chat Interface**
-<img width="1919" height="904" alt="Chat UI" src="https://github.com/user-attachments/assets/62b90dca-b2f4-4c1b-a10f-8f8506a907a4" />
+<img width="1919" height="904" alt="Chat UI" src="Interface.png" />
 
 ### **Seamless Calling Flow**
 *(Coming Soon: Updated screenshots of the new WebRTC interface)*
@@ -123,9 +123,11 @@ Contributions make the open-source community an amazing place!
 
 ---
 
-## 🧑‍💻 Author
-**Samarth Dharpure**  
-🌐 [LinkedIn](https://www.linkedin.com/in/samarth-dharpure-88a10b248/) | 💻 [GitHub](https://github.com/SamarthDharpure)
-
-📜 **License**: MIT  
-⭐ **Note**: If you find this project helpful, please give it a star!
+> 💡 **Production Deployment**  
+> The application is live and deployed using a modern CI/CD and cloud-native setup.
+>
+> - **Frontend**: Deployed on **Vercel** (React + Vite)  
+>   https://chat-versa-zm6p.vercel.app/
+>
+> - **Backend API**: Deployed on **AWS EC2** using **Jenkins CI/CD**, **Docker**, **Nginx**, and **HTTPS**  
+>   https://app-chat.duckdns.org
