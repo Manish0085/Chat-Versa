@@ -31,7 +31,8 @@ pipeline {
                 docker rm -f chat-backend || true
                 docker run -d \
                   --name chat-backend \
-                  --network host \
+                  -p 8082:8081 \
+                  -e SERVER_PORT=8081 \
                   -e KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 \
                   -e MONGODB_URI=mongodb://127.0.0.1:27017/chatapp \
                   chat-backend:latest
